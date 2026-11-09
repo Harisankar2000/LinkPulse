@@ -77,6 +77,7 @@ func run(log *slog.Logger) error {
 		Events:     emitter,
 		BaseURL:    cfg.BaseURL,
 		TrustProxy: cfg.TrustProxyHeaders,
+		DemoMode:   cfg.DemoMode,
 		Log:        log,
 		Ready: []httpapi.Checker{
 			{Name: "postgres", Check: db.Ping},

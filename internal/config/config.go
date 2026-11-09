@@ -32,6 +32,9 @@ type Config struct {
 	TrustProxyHeaders bool
 
 	EventBufferSize int
+
+	// DemoMode enables the dashboard's click simulator.
+	DemoMode bool
 }
 
 func Load() (Config, error) {
@@ -45,6 +48,7 @@ func Load() (Config, error) {
 		KafkaTopic:        getEnv("KAFKA_TOPIC", "link-clicks"),
 		KafkaGroup:        getEnv("KAFKA_GROUP", "linkpulse-analytics"),
 		TrustProxyHeaders: getEnv("TRUST_PROXY_HEADERS", "false") == "true",
+		DemoMode:          getEnv("DEMO_MODE", "false") == "true",
 	}
 
 	var err error

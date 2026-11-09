@@ -52,7 +52,9 @@ type Deps struct {
 	Ready           []Checker
 	BaseURL         string
 	TrustProxy      bool
-	Log             *slog.Logger
+	// DemoMode enables the click simulator used by the web dashboard.
+	DemoMode bool
+	Log      *slog.Logger
 }
 
 type server struct{ Deps }
@@ -62,7 +64,11 @@ func NewHandler(d Deps) http.Handler {
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("GET /{$}", s.home)
+	mux.HandleFunc("GET /api/v1/info", s.info)
 	mux.Handle("POST /api/v1/links", s.limit(d.CreateLimiter, http.HandlerFunc(s.createLink)))
+	if d.DemoMode {
+		mux.Handle("POST /api/v1/links/{code}/simulate", s.limit(d.CreateLimiter, http.HandlerFunc(s.simulate)))
+	}
 	mux.HandleFunc("GET /api/v1/links/{code}", s.getLink)
 	mux.HandleFunc("GET /api/v1/links/{code}/stats", s.linkStats)
 	mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, _ *http.Request) {
@@ -75,11 +81,12 @@ func NewHandler(d Deps) http.Handler {
 	return s.observe(s.recoverPanics(mux))
 }
 
-func (s *server) home(w http.ResponseWriter, _ *http.Request) {
-	writeJSON(w, http.StatusOK, map[string]string{
-		"service": "linkpulse",
-		"create":  "POST /api/v1/links",
-		"docs":    "https://github.com/Harisankar2000/linkpulse",
+func (s *server) info(w http.ResponseWriter, _ *http.Request) {
+	writeJSON(w, http.StatusOK, map[string]any{
+		"service":   "linkpulse",
+		"base_url":  s.BaseURL,
+		"demo_mode": s.DemoMode,
+		"source":    "https://github.com/Harisankar2000/LinkPulse",
 	})
 }
 
