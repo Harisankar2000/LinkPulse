@@ -21,6 +21,8 @@ services:
         value: link-clicks
       - key: KAFKA_TLS
         value: "true"
+      - key: KAFKA_SASL_MECHANISM
+        value: SCRAM-SHA-256
       - key: REDIS_NAMESPACE
         value: "lp:"
       - key: EVENT_BUFFER_SIZE
@@ -32,9 +34,9 @@ services:
         sync: false
       - key: KAFKA_BROKERS
         sync: false
+      - key: KAFKA_USERNAME
+        sync: false
+      - key: KAFKA_PASSWORD
+        sync: false
       - key: KAFKA_CA_CERT
-        sync: false
-      - key: KAFKA_CLIENT_CERT
-        sync: false
-      - key: KAFKA_CLIENT_KEY
         sync: false

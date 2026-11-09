@@ -24,25 +24,25 @@ Upstash's free plan allows one Redis database. If you already have one (for anot
 On the database page, copy the `rediss://` URL (two s's means TLS):
 `rediss://default:<password>@<name>.upstash.io:6379`
 
-## 3. Kafka on Aiven → `KAFKA_BROKERS`, `KAFKA_CA_CERT`, `KAFKA_CLIENT_CERT`, `KAFKA_CLIENT_KEY`
+## 3. Kafka on Aiven → `KAFKA_BROKERS`, `KAFKA_USERNAME`, `KAFKA_PASSWORD`, `KAFKA_CA_CERT`
 
-1. Sign up at aiven.io and create a service: **Apache Kafka**, **Free plan**. Wait until it shows **Running** (a few minutes).
+1. Sign up at aiven.io and create a service: **Apache Kafka** on the **Free** plan, not a trial plan. Trial credits run out after 30 days and the service stops. Wait until it shows **Running**.
 2. Open **Topics** → **Create topic**. Name it `link-clicks` (exactly), with **2 partitions**. Auto-creation isn't available on the free plan, so this step is required.
-3. Open the service **Overview** → **Connection information**, with authentication method **Client certificate**:
-   - **Service URI** (`xxx.aivencloud.com:12345`) → this is `KAFKA_BROKERS`
-   - Download **CA certificate** (`ca.pem`) → its whole content is `KAFKA_CA_CERT`
-   - Download **Access certificate** (`service.cert`) → `KAFKA_CLIENT_CERT`
-   - Download **Access key** (`service.key`) → `KAFKA_CLIENT_KEY`
+3. Open **Overview** → **Connection information** → **Apache Kafka** tab, and pick authentication method **SASL**:
+   - **Service URI** (`kafka-xxx.aivencloud.com:17065`) → `KAFKA_BROKERS`. The SASL port is different from the client-certificate port, so copy it with SASL selected.
+   - **User** (`avnadmin`) → `KAFKA_USERNAME`
+   - **Password** → `KAFKA_PASSWORD`
+   - **CA certificate** → `KAFKA_CA_CERT`. Paste the whole text, including the `-----BEGIN CERTIFICATE-----` and `-----END CERTIFICATE-----` lines. Render accepts multi-line values.
 
-Paste each file's full text, including the `-----BEGIN ...-----` and `-----END ...-----` lines. Render accepts multi-line values.
+`render.yaml` already sets `KAFKA_TLS=true` and `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`, which is what Aiven uses.
 
-If you'd rather use a username and password: enable SASL in the service's advanced configuration, then use the SASL port as `KAFKA_BROKERS`, set `KAFKA_SASL_MECHANISM=SCRAM-SHA-256`, `KAFKA_USERNAME` and `KAFKA_PASSWORD`, keep `KAFKA_CA_CERT`, and leave the client cert and key empty.
+If you prefer client certificates instead: pick **Client certificate**, use that Service URI, and set `KAFKA_CLIENT_CERT` (`service.cert`) and `KAFKA_CLIENT_KEY` (`service.key`) in Render. Delete `KAFKA_SASL_MECHANISM`, `KAFKA_USERNAME` and `KAFKA_PASSWORD`.
 
 ## 4. The app on Render
 
 1. Sign up at render.com with your GitHub account, and allow access to the `LinkPulse` repository.
 2. Click **New** → **Blueprint**, pick `Harisankar2000/LinkPulse`. Render reads [`render.yaml`](render.yaml).
-3. It asks for the six secret values (`DATABASE_URL`, `REDIS_URL` and the four Kafka values). Paste them from the steps above, then click **Apply**.
+3. It asks for six secret values: `DATABASE_URL`, `REDIS_URL`, `KAFKA_BROKERS`, `KAFKA_USERNAME`, `KAFKA_PASSWORD` and `KAFKA_CA_CERT`. Paste them from the steps above, then click **Apply**.
 4. The first build takes 3–5 minutes. When it's live, open `https://<your-service>.onrender.com`.
 
 `BASE_URL` is set automatically from Render's public URL (`RENDER_EXTERNAL_URL`), so short links point at the right host.
@@ -51,7 +51,7 @@ If you'd rather use a username and password: enable SASL in the service's advanc
 
 - `https://<your-service>.onrender.com/readyz` should show `{"postgres":"ok","redis":"ok"}`.
 - On the dashboard, shorten a link, click **Simulate 50 clicks**, and the charts should fill within about 10 seconds.
-- If the charts stay empty, check Render's **Logs** for `kafka` errors. Usually it's a missing `link-clicks` topic, a wrong broker port, or a certificate pasted without its BEGIN/END lines.
+- If the charts stay empty, check Render's **Logs** for `kafka` errors. Usually it's a missing `link-clicks` topic, the client-certificate port used with SASL, a wrong password, or a certificate pasted without its BEGIN/END lines.
 
 ## Before an interview
 
@@ -62,7 +62,7 @@ The free Render service sleeps when idle, and Aiven's free Kafka powers off. **O
 | | Local (`make up`) | Render free |
 |---|---|---|
 | Analytics consumer | Separate container | Same process (`ANALYTICS_IN_PROCESS=true`), since background workers aren't free |
-| Kafka | Plaintext, 6 partitions | TLS with client certificates, 2 partitions |
+| Kafka | Plaintext, 6 partitions | TLS + SASL/SCRAM, 2 partitions |
 | Country data | Shows `XX` unless you send a header | Shows `XX` unless the request passes through a CDN that adds a country header; the click simulator generates realistic countries |
 
 The code path is identical in both: redirects still publish to Kafka, and the consumer still batches into Postgres rollups.
