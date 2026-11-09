@@ -35,13 +35,39 @@ type Config struct {
 
 	// DemoMode enables the dashboard's click simulator.
 	DemoMode bool
+
+	// AnalyticsInProcess runs the Kafka consumer inside the API process, for
+	// hosts where a separate worker costs extra. Events still go through Kafka.
+	AnalyticsInProcess bool
+
+	Kafka KafkaAuth
+}
+
+// KafkaAuth holds credentials for a hosted Kafka cluster; see analytics.KafkaOpts.
+// PEM values may contain real newlines or literal \n sequences.
+type KafkaAuth struct {
+	TLS           bool
+	CACert        string
+	ClientCert    string
+	ClientKey     string
+	SASLMechanism string
+	Username      string
+	Password      string
 }
 
 func Load() (Config, error) {
+	// Platforms like Render tell the app which port to bind via PORT and
+	// publish the service's public URL as RENDER_EXTERNAL_URL.
+	defaultAddr := ":8080"
+	if p := os.Getenv("PORT"); p != "" {
+		defaultAddr = ":" + p
+	}
+	defaultBase := getEnv("RENDER_EXTERNAL_URL", "http://localhost:8080")
+
 	c := Config{
-		HTTPAddr:          getEnv("HTTP_ADDR", ":8080"),
+		HTTPAddr:          getEnv("HTTP_ADDR", defaultAddr),
 		MetricsAddr:       getEnv("METRICS_ADDR", ":9091"),
-		BaseURL:           strings.TrimRight(getEnv("BASE_URL", "http://localhost:8080"), "/"),
+		BaseURL:           strings.TrimRight(getEnv("BASE_URL", defaultBase), "/"),
 		DatabaseURL:       getEnv("DATABASE_URL", "postgres://linkpulse:linkpulse@localhost:5433/linkpulse?sslmode=disable"),
 		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6380/0"),
 		KafkaBrokers:      splitCSV(getEnv("KAFKA_BROKERS", "localhost:9094")),
@@ -49,6 +75,17 @@ func Load() (Config, error) {
 		KafkaGroup:        getEnv("KAFKA_GROUP", "linkpulse-analytics"),
 		TrustProxyHeaders: getEnv("TRUST_PROXY_HEADERS", "false") == "true",
 		DemoMode:          getEnv("DEMO_MODE", "false") == "true",
+
+		AnalyticsInProcess: getEnv("ANALYTICS_IN_PROCESS", "false") == "true",
+		Kafka: KafkaAuth{
+			TLS:           getEnv("KAFKA_TLS", "false") == "true",
+			CACert:        os.Getenv("KAFKA_CA_CERT"),
+			ClientCert:    os.Getenv("KAFKA_CLIENT_CERT"),
+			ClientKey:     os.Getenv("KAFKA_CLIENT_KEY"),
+			SASLMechanism: os.Getenv("KAFKA_SASL_MECHANISM"),
+			Username:      os.Getenv("KAFKA_USERNAME"),
+			Password:      os.Getenv("KAFKA_PASSWORD"),
+		},
 	}
 
 	var err error

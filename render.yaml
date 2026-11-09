@@ -1,0 +1,38 @@
+# Render Blueprint: one free web service runs the API, the dashboard and the
+# analytics consumer (ANALYTICS_IN_PROCESS). Postgres, Redis and Kafka are
+# hosted elsewhere on free tiers; see DEPLOY.md for where each value comes from.
+services:
+  - type: web
+    name: linkpulse
+    runtime: docker
+    plan: free
+    region: singapore
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      # Public settings
+      - key: DEMO_MODE
+        value: "true"
+      - key: ANALYTICS_IN_PROCESS
+        value: "true"
+      - key: TRUST_PROXY_HEADERS
+        value: "true"
+      - key: KAFKA_TOPIC
+        value: link-clicks
+      - key: KAFKA_TLS
+        value: "true"
+      - key: EVENT_BUFFER_SIZE
+        value: "2000"
+      # Secrets: Render asks for these when you create the Blueprint.
+      - key: DATABASE_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: KAFKA_BROKERS
+        sync: false
+      - key: KAFKA_CA_CERT
+        sync: false
+      - key: KAFKA_CLIENT_CERT
+        sync: false
+      - key: KAFKA_CLIENT_KEY
+        sync: false

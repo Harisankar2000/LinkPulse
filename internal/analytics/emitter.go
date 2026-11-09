@@ -25,16 +25,17 @@ type Emitter struct {
 	once   sync.Once
 }
 
-func NewEmitter(brokers []string, topic string, buffer int, log *slog.Logger) (*Emitter, error) {
-	client, err := kgo.NewClient(
+func NewEmitter(brokers []string, topic string, buffer int, log *slog.Logger, extra ...kgo.Opt) (*Emitter, error) {
+	opts := append([]kgo.Opt{
 		kgo.SeedBrokers(brokers...),
 		kgo.DefaultProduceTopic(topic),
 		kgo.AllowAutoTopicCreation(),
-		kgo.ProducerLinger(20*time.Millisecond), // batch records for throughput
+		kgo.ProducerLinger(20 * time.Millisecond), // batch records for throughput
 		kgo.ProducerBatchCompression(kgo.SnappyCompression()),
 		kgo.RequiredAcks(kgo.LeaderAck()),
 		kgo.DisableIdempotentWrite(), // required with LeaderAck; duplicates are tolerable for click counts
-	)
+	}, extra...)
+	client, err := kgo.NewClient(opts...)
 	if err != nil {
 		return nil, err
 	}

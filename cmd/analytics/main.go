@@ -57,7 +57,11 @@ func run(log *slog.Logger) error {
 	}()
 	defer metricsSrv.Close()
 
-	consumer, err := analytics.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroup, db, log)
+	kafkaOpts, err := analytics.KafkaOpts(cfg.Kafka)
+	if err != nil {
+		return err
+	}
+	consumer, err := analytics.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroup, db, log, kafkaOpts...)
 	if err != nil {
 		return err
 	}

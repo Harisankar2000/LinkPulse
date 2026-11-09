@@ -63,11 +63,33 @@ func run(log *slog.Logger) error {
 		log.Warn("redis not reachable at startup; cache and rate limits degrade until it is", "err", err)
 	}
 
-	emitter, err := analytics.NewEmitter(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.EventBufferSize, log)
+	kafkaOpts, err := analytics.KafkaOpts(cfg.Kafka)
+	if err != nil {
+		return err
+	}
+	emitter, err := analytics.NewEmitter(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.EventBufferSize, log, kafkaOpts...)
 	if err != nil {
 		return err
 	}
 	go emitter.Run()
+
+	// On free hosting tiers without background workers, run the consumer here.
+	consumerDone := make(chan struct{})
+	if cfg.AnalyticsInProcess {
+		consumer, err := analytics.NewConsumer(cfg.KafkaBrokers, cfg.KafkaTopic, cfg.KafkaGroup, db, log, kafkaOpts...)
+		if err != nil {
+			return err
+		}
+		go func() {
+			defer close(consumerDone)
+			log.Info("analytics consumer running in-process", "topic", cfg.KafkaTopic)
+			if err := consumer.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				log.Error("in-process analytics consumer stopped", "err", err)
+			}
+		}()
+	} else {
+		close(consumerDone)
+	}
 
 	linkCache := cache.New(rdb, db.GetLink, cfg.CacheTTL, cfg.NegativeCacheTTL, log)
 	service := links.NewService(db, linkCache, shortid.NewAllocator(db, store.IDBlockSize), cfg.BaseURL)
@@ -123,6 +145,10 @@ func run(log *slog.Logger) error {
 		log.Error("http shutdown", "err", err)
 	}
 	emitter.Close(shutdownCtx)
+	select {
+	case <-consumerDone:
+	case <-shutdownCtx.Done():
+	}
 	log.Info("shutdown complete")
 	return nil
 }

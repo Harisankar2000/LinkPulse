@@ -4,6 +4,8 @@ A URL shortener with click analytics, written in Go and designed for read-heavy 
 
 **Stack:** Go · PostgreSQL · Redis · Kafka · Prometheus · Docker
 
+**Live demo:** _coming soon_ · open the dashboard, shorten a link, and press **Simulate 50 clicks** to watch analytics flow through Kafka in real time. (Free hosting: the first visit may take a minute to wake up.)
+
 ```mermaid
 flowchart LR
     U[Client] -->|POST /api/v1/links| API
@@ -28,6 +30,7 @@ flowchart LR
 - Two-level cache (in-process L1 + Redis L2) with cache-stampede protection
 - Distributed rate limiting (Redis + Lua token bucket), per client IP
 - Async click analytics through Kafka: totals, per day, country, device and referrer
+- Web dashboard at `/` with live per-link charts and a click simulator (`DEMO_MODE`)
 - Prometheus metrics, health and readiness probes, graceful shutdown
 - Unit tests, integration tests against real Postgres and Redis, and a load generator
 
@@ -38,6 +41,8 @@ Needs Docker. Go is optional: the Makefile runs Go inside a container if it isn'
 ```bash
 make up            # api on :8080 + analytics consumer + postgres + redis + kafka
 ```
+
+Then open **http://localhost:8080** for the dashboard, or use the API directly:
 
 ```bash
 # create a link
@@ -178,6 +183,14 @@ make clean              # stop everything and delete data
 | `RATE_REDIRECT_RPS` / `RATE_REDIRECT_BURST` | `100` / `200` | Redirect limit per IP (`0` disables) |
 | `TRUST_PROXY_HEADERS` | `false` | Use `X-Forwarded-For` for client IP (only behind a trusted proxy) |
 | `EVENT_BUFFER_SIZE` | `10000` | Click events buffered before dropping |
+| `DEMO_MODE` | `false` | Enables the dashboard's click simulator |
+| `ANALYTICS_IN_PROCESS` | `false` | Run the Kafka consumer inside the API process (single-service hosting) |
+| `KAFKA_TLS`, `KAFKA_CA_CERT`, `KAFKA_CLIENT_CERT`, `KAFKA_CLIENT_KEY` | empty | TLS / mutual TLS for hosted Kafka |
+| `KAFKA_SASL_MECHANISM`, `KAFKA_USERNAME`, `KAFKA_PASSWORD` | empty | SASL (`PLAIN`, `SCRAM-SHA-256`, `SCRAM-SHA-512`) |
+
+## Deployment
+
+The free hosted demo runs on Render + Neon + Upstash + Aiven Kafka. See [DEPLOY.md](DEPLOY.md).
 
 ## What I'd add next
 

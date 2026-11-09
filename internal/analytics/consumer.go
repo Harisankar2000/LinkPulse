@@ -29,8 +29,8 @@ type Consumer struct {
 	log    *slog.Logger
 }
 
-func NewConsumer(brokers []string, topic, group string, sink Sink, log *slog.Logger) (*Consumer, error) {
-	client, err := kgo.NewClient(
+func NewConsumer(brokers []string, topic, group string, sink Sink, log *slog.Logger, extra ...kgo.Opt) (*Consumer, error) {
+	opts := append([]kgo.Opt{
 		kgo.SeedBrokers(brokers...),
 		kgo.ConsumerGroup(group),
 		kgo.ConsumeTopics(topic),
@@ -38,8 +38,9 @@ func NewConsumer(brokers []string, topic, group string, sink Sink, log *slog.Log
 		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
-		kgo.FetchMaxWait(500*time.Millisecond),
-	)
+		kgo.FetchMaxWait(500 * time.Millisecond),
+	}, extra...)
+	client, err := kgo.NewClient(opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -47,7 +48,13 @@ func NewConsumer(brokers []string, topic, group string, sink Sink, log *slog.Log
 }
 
 func (c *Consumer) Run(ctx context.Context) error {
-	defer c.client.Close()
+	// With BlockRebalanceOnPoll, Close can only leave the group after
+	// AllowRebalance. Skipping it makes Close hang, the process gets killed,
+	// and its stale membership stalls the group until the session times out.
+	defer func() {
+		c.client.AllowRebalance()
+		c.client.Close()
+	}()
 	for {
 		fetches := c.client.PollRecords(ctx, 10_000)
 		if fetches.IsClientClosed() || ctx.Err() != nil {
@@ -59,7 +66,6 @@ func (c *Consumer) Run(ctx context.Context) error {
 
 		counts := Aggregate(fetches.Records())
 		if err := c.writeWithRetry(ctx, counts); err != nil {
-			c.client.AllowRebalance()
 			return err
 		}
 		if err := c.client.CommitUncommittedOffsets(ctx); err != nil && !errors.Is(err, context.Canceled) {
