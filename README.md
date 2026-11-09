@@ -4,7 +4,7 @@ A URL shortener with click analytics, written in Go and designed for read-heavy 
 
 **Stack:** Go · PostgreSQL · Redis · Kafka · Prometheus · Docker
 
-**Live demo:** _coming soon_ · open the dashboard, shorten a link, and press **Simulate 50 clicks** to watch analytics flow through Kafka in real time. (Free hosting: the first visit may take a minute to wake up.)
+**Live demo:** [linkpulse-w5gc.onrender.com](https://linkpulse-w5gc.onrender.com) · open the dashboard, shorten a link, and press **Simulate 50 clicks** to watch analytics flow through Kafka in real time. Try the short link [/source](https://linkpulse-w5gc.onrender.com/source), which redirects back to this repo. (Free hosting: the first visit may take a minute to wake up.)
 
 ```mermaid
 flowchart LR
