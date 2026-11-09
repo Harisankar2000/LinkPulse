@@ -70,8 +70,8 @@ func Load() (Config, error) {
 		HTTPAddr:          getEnv("HTTP_ADDR", defaultAddr),
 		MetricsAddr:       getEnv("METRICS_ADDR", ":9091"),
 		BaseURL:           strings.TrimRight(getEnv("BASE_URL", defaultBase), "/"),
-		DatabaseURL:       getEnv("DATABASE_URL", "postgres://linkpulse:linkpulse@localhost:5433/linkpulse?sslmode=disable"),
-		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6380/0"),
+		DatabaseURL:       cleanURL(getEnv("DATABASE_URL", "postgres://linkpulse:linkpulse@localhost:5433/linkpulse?sslmode=disable")),
+		RedisURL:          cleanURL(getEnv("REDIS_URL", "redis://localhost:6380/0")),
 		RedisNamespace:    getEnv("REDIS_NAMESPACE", "lp:"),
 		KafkaBrokers:      splitCSV(getEnv("KAFKA_BROKERS", "localhost:9094")),
 		KafkaTopic:        getEnv("KAFKA_TOPIC", "link-clicks"),
@@ -157,6 +157,12 @@ func getFloat(key string, def float64) (float64, error) {
 		return 0, fmt.Errorf("config %s: %w", key, err)
 	}
 	return f, nil
+}
+
+// cleanURL trims whitespace and surrounding quotes that dashboards and
+// copy-paste often add around connection strings.
+func cleanURL(s string) string {
+	return strings.Trim(strings.TrimSpace(s), `"'`)
 }
 
 func splitCSV(s string) []string {

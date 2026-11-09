@@ -45,7 +45,8 @@ type Store struct {
 func New(ctx context.Context, databaseURL string) (*Store, error) {
 	cfg, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, fmt.Errorf("parse database url: %w", err)
+		// Don't wrap err: parse errors can echo the URL, password included.
+		return nil, errors.New("invalid DATABASE_URL: expected postgresql://user:password@host/dbname?sslmode=require")
 	}
 	cfg.MaxConns = 20
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

@@ -54,7 +54,8 @@ func run(log *slog.Logger) error {
 
 	ropts, err := redis.ParseURL(cfg.RedisURL)
 	if err != nil {
-		return err
+		// Don't wrap err: go-redis echoes the whole URL, password included.
+		return errors.New("invalid REDIS_URL: expected just the URL, e.g. rediss://default:<password>@<host>:6379 (not a redis-cli command)")
 	}
 	ropts.PoolSize = 100
 	rdb := redis.NewClient(ropts)
