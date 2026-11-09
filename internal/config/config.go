@@ -16,6 +16,8 @@ type Config struct {
 
 	DatabaseURL string
 	RedisURL    string
+	// RedisNamespace prefixes every Redis key, so one Redis can serve several apps.
+	RedisNamespace string
 
 	KafkaBrokers []string
 	KafkaTopic   string
@@ -70,6 +72,7 @@ func Load() (Config, error) {
 		BaseURL:           strings.TrimRight(getEnv("BASE_URL", defaultBase), "/"),
 		DatabaseURL:       getEnv("DATABASE_URL", "postgres://linkpulse:linkpulse@localhost:5433/linkpulse?sslmode=disable"),
 		RedisURL:          getEnv("REDIS_URL", "redis://localhost:6380/0"),
+		RedisNamespace:    getEnv("REDIS_NAMESPACE", "lp:"),
 		KafkaBrokers:      splitCSV(getEnv("KAFKA_BROKERS", "localhost:9094")),
 		KafkaTopic:        getEnv("KAFKA_TOPIC", "link-clicks"),
 		KafkaGroup:        getEnv("KAFKA_GROUP", "linkpulse-analytics"),

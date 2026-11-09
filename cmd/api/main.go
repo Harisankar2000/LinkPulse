@@ -91,7 +91,7 @@ func run(log *slog.Logger) error {
 		close(consumerDone)
 	}
 
-	linkCache := cache.New(rdb, db.GetLink, cfg.CacheTTL, cfg.NegativeCacheTTL, log)
+	linkCache := cache.New(rdb, cfg.RedisNamespace, db.GetLink, cfg.CacheTTL, cfg.NegativeCacheTTL, log)
 	service := links.NewService(db, linkCache, shortid.NewAllocator(db, store.IDBlockSize), cfg.BaseURL)
 
 	deps := httpapi.Deps{
@@ -107,10 +107,10 @@ func run(log *slog.Logger) error {
 		},
 	}
 	// Assign only non-nil limiters: a nil *Limiter in an interface is not a nil interface.
-	if l := ratelimit.New(rdb, "create", cfg.CreatePerMinute/60, cfg.CreateBurst, log); l != nil {
+	if l := ratelimit.New(rdb, cfg.RedisNamespace, "create", cfg.CreatePerMinute/60, cfg.CreateBurst, log); l != nil {
 		deps.CreateLimiter = l
 	}
-	if l := ratelimit.New(rdb, "redirect", cfg.RedirectPerSecond, cfg.RedirectBurst, log); l != nil {
+	if l := ratelimit.New(rdb, cfg.RedisNamespace, "redirect", cfg.RedirectPerSecond, cfg.RedirectBurst, log); l != nil {
 		deps.RedirectLimiter = l
 	}
 

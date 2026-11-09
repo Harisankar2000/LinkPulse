@@ -182,6 +182,7 @@ make clean              # stop everything and delete data
 | `RATE_CREATE_PER_MIN` / `RATE_CREATE_BURST` | `30` / `10` | Create limit per IP (`0` disables) |
 | `RATE_REDIRECT_RPS` / `RATE_REDIRECT_BURST` | `100` / `200` | Redirect limit per IP (`0` disables) |
 | `TRUST_PROXY_HEADERS` | `false` | Use `X-Forwarded-For` for client IP (only behind a trusted proxy) |
+| `REDIS_NAMESPACE` | `lp:` | Prefix on every Redis key, so LinkPulse can share a Redis database |
 | `EVENT_BUFFER_SIZE` | `10000` | Click events buffered before dropping |
 | `DEMO_MODE` | `false` | Enables the dashboard's click simulator |
 | `ANALYTICS_IN_PROCESS` | `false` | Run the Kafka consumer inside the API process (single-service hosting) |

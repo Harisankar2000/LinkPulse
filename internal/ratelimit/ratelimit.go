@@ -50,6 +50,7 @@ return {allowed, retry_ms}
 type Limiter struct {
 	rdb   *redis.Client
 	name  string
+	key   string // namespace + "rl:" + name + ":"
 	rate  float64
 	burst int
 	log   *slog.Logger
@@ -57,14 +58,15 @@ type Limiter struct {
 
 // New returns a limiter allowing rate requests per second with bursts of up
 // to burst. It returns nil when rate <= 0, which callers treat as "no limit".
-func New(rdb *redis.Client, name string, rate float64, burst int, log *slog.Logger) *Limiter {
+// Keys start with namespace (e.g. "lp:"), so the limiter can share a Redis database.
+func New(rdb *redis.Client, namespace, name string, rate float64, burst int, log *slog.Logger) *Limiter {
 	if rate <= 0 {
 		return nil
 	}
 	if burst < 1 {
 		burst = 1
 	}
-	return &Limiter{rdb: rdb, name: name, rate: rate, burst: burst, log: log}
+	return &Limiter{rdb: rdb, name: name, key: namespace + "rl:" + name + ":", rate: rate, burst: burst, log: log}
 }
 
 func (l *Limiter) Name() string { return l.name }
@@ -73,7 +75,7 @@ func (l *Limiter) Name() string { return l.name }
 // token will be available. Redis errors fail open: a cache outage must not
 // turn into an API outage.
 func (l *Limiter) Allow(ctx context.Context, key string) (allowed bool, retryAfter time.Duration) {
-	res, err := tokenBucket.Run(ctx, l.rdb, []string{"rl:" + l.name + ":" + key}, l.rate, l.burst).Int64Slice()
+	res, err := tokenBucket.Run(ctx, l.rdb, []string{l.key + key}, l.rate, l.burst).Int64Slice()
 	if err != nil || len(res) != 2 {
 		l.log.Warn("rate limiter unavailable, allowing request", "limiter", l.name, "err", err)
 		return true, 0

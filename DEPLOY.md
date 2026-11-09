@@ -11,20 +11,18 @@ None of these need a credit card. The whole setup takes about 20 minutes. Do the
 
 > **Never commit these values to git.** They go only into Render's environment settings.
 
-## 1. Postgres on Neon → `DATABASE_URL`
+## 1. Postgres on Neon → `DATABASE_URL` ✅ done
 
-1. Sign up at neon.tech and create a project named `linkpulse`. Pick the region closest to Singapore (or wherever you'll put Render).
-2. On the project dashboard, click **Connect**.
-3. **Turn off "Connection pooling"**, so the host name has no `-pooler`. Copy the connection string. It looks like:
-   `postgresql://neondb_owner:...@ep-xxx.ap-southeast-1.aws.neon.tech/neondb?sslmode=require`
+Project `linkpulse` (AWS Singapore) is linked to this repo with `neon init`. The app was tested end to end against it: tables are created, links redirect, and analytics roll up.
 
-Tables are created automatically when the app starts.
+To get the value for Render, click **Connect** in the Neon console with **Connection pooling on**, and copy the string (host contains `-pooler`). Pooled is Neon's recommendation for app traffic, and it was verified with this app's `pgx` driver. Locally, `neon env pull` writes the same values to `.env.local` (git-ignored).
 
 ## 2. Redis on Upstash → `REDIS_URL`
 
-1. Sign up at upstash.com and create a **Redis** database named `linkpulse`, in a region near Render's.
-2. On the database page, find the connection details for **TCP** / `redis-cli`, with TLS enabled. Copy the URL that starts with **`rediss://`** (two s's means TLS):
-   `rediss://default:...@xxx.upstash.io:6379`
+Upstash's free plan allows one Redis database. If you already have one (for another project), **reuse it**: LinkPulse prefixes every key with `lp:` (`REDIS_NAMESPACE`), so it never touches the other app's keys. The two apps share the free monthly command quota.
+
+On the database page, copy the `rediss://` URL (two s's means TLS):
+`rediss://default:<password>@<name>.upstash.io:6379`
 
 ## 3. Kafka on Aiven → `KAFKA_BROKERS`, `KAFKA_CA_CERT`, `KAFKA_CLIENT_CERT`, `KAFKA_CLIENT_KEY`
 
@@ -44,7 +42,7 @@ If you'd rather use a username and password: enable SASL in the service's advanc
 
 1. Sign up at render.com with your GitHub account, and allow access to the `LinkPulse` repository.
 2. Click **New** → **Blueprint**, pick `Harisankar2000/LinkPulse`. Render reads [`render.yaml`](render.yaml).
-3. It asks for the six secret values. Paste them from the steps above, then click **Apply**.
+3. It asks for the six secret values (`DATABASE_URL`, `REDIS_URL` and the four Kafka values). Paste them from the steps above, then click **Apply**.
 4. The first build takes 3–5 minutes. When it's live, open `https://<your-service>.onrender.com`.
 
 `BASE_URL` is set automatically from Render's public URL (`RENDER_EXTERNAL_URL`), so short links point at the right host.

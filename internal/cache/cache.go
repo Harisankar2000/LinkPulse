@@ -27,7 +27,6 @@ import (
 )
 
 const (
-	keyPrefix    = "link:"
 	notFoundMark = "!"
 	loadTimeout  = 3 * time.Second
 )
@@ -42,13 +41,17 @@ type LinkCache struct {
 	negTTL time.Duration
 	sf     singleflight.Group
 	l1     *local
+	prefix string // e.g. "lp:link:"
 	log    *slog.Logger
 }
 
-func New(rdb *redis.Client, load Loader, ttl, negTTL time.Duration, log *slog.Logger) *LinkCache {
+// New returns a cache whose Redis keys start with namespace (e.g. "lp:"), so
+// LinkPulse can share a Redis database with other apps.
+func New(rdb *redis.Client, namespace string, load Loader, ttl, negTTL time.Duration, log *slog.Logger) *LinkCache {
 	return &LinkCache{
 		rdb: rdb, load: load, ttl: ttl, negTTL: negTTL, log: log,
-		l1: newLocal(10*time.Second, 50_000),
+		prefix: namespace + "link:",
+		l1:     newLocal(10*time.Second, 50_000),
 	}
 }
 
@@ -65,7 +68,7 @@ func (c *LinkCache) Get(ctx context.Context, code string) (store.Link, error) {
 		return l, nil
 	}
 
-	raw, err := c.rdb.Get(ctx, keyPrefix+code).Result()
+	raw, err := c.rdb.Get(ctx, c.prefix+code).Result()
 	switch {
 	case err == nil && raw == notFoundMark:
 		metrics.CacheLookups.WithLabelValues("negative_hit").Inc()
@@ -93,7 +96,7 @@ func (c *LinkCache) Get(ctx context.Context, code string) (store.Link, error) {
 		defer cancel()
 		// Double-check: a caller that missed just after another flight finished
 		// would otherwise start a second DB load for a value that is now cached.
-		if raw, err := c.rdb.Get(lctx, keyPrefix+code).Result(); err == nil {
+		if raw, err := c.rdb.Get(lctx, c.prefix+code).Result(); err == nil {
 			if raw == notFoundMark {
 				return store.Link{}, store.ErrNotFound
 			}
@@ -116,7 +119,7 @@ func (c *LinkCache) loadAndFill(ctx context.Context, code string) (store.Link, e
 	metrics.CacheLoads.Inc()
 	l, err := c.load(ctx, code)
 	if errors.Is(err, store.ErrNotFound) {
-		if serr := c.rdb.Set(ctx, keyPrefix+code, notFoundMark, c.negTTL).Err(); serr != nil {
+		if serr := c.rdb.Set(ctx, c.prefix+code, notFoundMark, c.negTTL).Err(); serr != nil {
 			c.log.Warn("redis set negative failed", "err", serr)
 		}
 		return store.Link{}, err
@@ -134,7 +137,7 @@ func (c *LinkCache) loadAndFill(ctx context.Context, code string) (store.Link, e
 		ttl = min(ttl, untilExpiry)
 	}
 	b, _ := json.Marshal(entry{URL: l.LongURL, ExpiresAt: l.ExpiresAt})
-	if serr := c.rdb.Set(ctx, keyPrefix+code, b, ttl).Err(); serr != nil {
+	if serr := c.rdb.Set(ctx, c.prefix+code, b, ttl).Err(); serr != nil {
 		c.log.Warn("redis set failed", "err", serr)
 	}
 	return l, nil
@@ -143,7 +146,7 @@ func (c *LinkCache) loadAndFill(ctx context.Context, code string) (store.Link, e
 // Invalidate removes any cached entry, including a negative one. Called after
 // a link is created so an earlier "not found" doesn't hide it.
 func (c *LinkCache) Invalidate(ctx context.Context, code string) error {
-	return c.rdb.Del(ctx, keyPrefix+code).Err()
+	return c.rdb.Del(ctx, c.prefix+code).Err()
 }
 
 // jitter returns d plus or minus up to 10%.

@@ -67,7 +67,7 @@ func TestCacheStampedeProtection(t *testing.T) {
 		time.Sleep(50 * time.Millisecond) // a slow query widens the stampede window
 		return db.GetLink(ctx, c)
 	}
-	lc := cache.New(rdb, slowLoader, time.Minute, time.Second, quiet)
+	lc := cache.New(rdb, "lptest:", slowLoader, time.Minute, time.Second, quiet)
 	_ = lc.Invalidate(ctx, code)
 
 	var wg sync.WaitGroup
@@ -91,7 +91,7 @@ func TestCacheStampedeProtection(t *testing.T) {
 func TestNegativeCacheAndInvalidate(t *testing.T) {
 	db, rdb := setup(t)
 	ctx := context.Background()
-	lc := cache.New(rdb, db.GetLink, time.Minute, time.Minute, quiet)
+	lc := cache.New(rdb, "lptest:", db.GetLink, time.Minute, time.Minute, quiet)
 	svc := links.NewService(db, lc, shortid.NewAllocator(db, store.IDBlockSize), "https://lnk.test")
 
 	alias := fmt.Sprintf("later-%d", time.Now().UnixNano()%1e9)
@@ -110,7 +110,7 @@ func TestNegativeCacheAndInvalidate(t *testing.T) {
 func TestConcurrentCreatesGetUniqueCodes(t *testing.T) {
 	db, rdb := setup(t)
 	ctx := context.Background()
-	lc := cache.New(rdb, db.GetLink, time.Minute, time.Second, quiet)
+	lc := cache.New(rdb, "lptest:", db.GetLink, time.Minute, time.Second, quiet)
 	// Two allocators simulate two API instances sharing one sequence.
 	a1 := shortid.NewAllocator(db, store.IDBlockSize)
 	a2 := shortid.NewAllocator(db, store.IDBlockSize)
@@ -150,7 +150,7 @@ func TestConcurrentCreatesGetUniqueCodes(t *testing.T) {
 func TestRateLimiter(t *testing.T) {
 	_, rdb := setup(t)
 	ctx := context.Background()
-	l := ratelimit.New(rdb, fmt.Sprintf("test-%d", time.Now().UnixNano()), 1, 5, quiet)
+	l := ratelimit.New(rdb, "lptest:", fmt.Sprintf("test-%d", time.Now().UnixNano()), 1, 5, quiet)
 
 	allowed := 0
 	var retry time.Duration

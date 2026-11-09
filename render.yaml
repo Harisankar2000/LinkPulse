@@ -21,6 +21,8 @@ services:
         value: link-clicks
       - key: KAFKA_TLS
         value: "true"
+      - key: REDIS_NAMESPACE
+        value: "lp:"
       - key: EVENT_BUFFER_SIZE
         value: "2000"
       # Secrets: Render asks for these when you create the Blueprint.
